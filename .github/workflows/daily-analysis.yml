@@ -4,14 +4,6 @@ on:
   schedule:
     - cron: '0 6 * * *'  # Runs at 06:00 UTC every day
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main  # or master, depending on your default branch
-    types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
-      - feature/use_github_releases
 
 jobs:
   analyze:
