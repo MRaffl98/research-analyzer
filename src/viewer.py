@@ -1,9 +1,13 @@
-import streamlit as st
-import pandas as pd
 import json
+import os
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
 from pathlib import Path
 from typing import Dict
-import plotly.express as px
+
+from storage_utils import StorageManager
 
 
 def load_analysis_results(file_path: str) -> Dict:
@@ -55,26 +59,51 @@ def create_paper_viewer():
     # Sidebar for file selection and filtering
     st.sidebar.title("Controls")
 
-    # Find all analysis result files
-    results_dir = Path("analysis_results")
-    if not results_dir.exists():
-        st.error("No analysis results found. Please run the analyzer first.")
-        return
+    # Determine storage mode
+    github_token = os.getenv("GITHUB_TOKEN")
+    github_repo = os.getenv("GITHUB_REPOSITORY")
+    use_github = github_token is not None and github_repo is not None
 
-    result_files = list(results_dir.glob("papers_analysis_*.json"))
-    if not result_files:
-        st.error("No analysis results found. Please run the analyzer first.")
-        return
+    # Find analysis result files
+    if use_github:
+        try:
+            owner, repo = github_repo.split('/')
+            storage = StorageManager(owner, repo)
+            result_files = storage.list_analysis_files()
+            if not result_files:
+                st.warning("No analysis results found in GitHub. Falling back to local storage.")
+                use_github = False
+        except Exception as e:
+            st.error(f"Error accessing GitHub storage: {e}")
+            use_github = False
+
+    if not use_github:
+        results_dir = Path("analysis_results")
+        if not results_dir.exists():
+            st.error("No analysis results found. Please run the analyzer first.")
+            return
+
+        result_files = list(results_dir.glob("papers_analysis_*.json"))
+        if not result_files:
+            st.error("No analysis results found. Please run the analyzer first.")
+            return
+
+    # Storage mode indicator
+    st.sidebar.info("Using " + ("GitHub storage" if use_github else "local storage"))
 
     # File selection
     selected_file = st.sidebar.selectbox(
         "Select Analysis Results",
         result_files,
-        format_func=lambda x: f"Analysis from {x.stem.split('_')[-1]}"
+        format_func=lambda x: f"Analysis from {x['key'].split('_')[-1].replace('.json', '')}" if use_github
+        else f"Analysis from {x.stem.split('_')[-1]}"
     )
 
     # Load selected results
-    results = load_analysis_results(selected_file)
+    if use_github:
+        results = storage.get_analysis_file(selected_file['download_url'])
+    else:
+        results = load_analysis_results(selected_file)
 
     # Convert all paper categories to DataFrames with proper ordering
     papers_data = {

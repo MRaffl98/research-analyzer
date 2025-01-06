@@ -1,15 +1,19 @@
-from pathlib import Path
-
 import feedparser
+import json
+import logging
+import os
 import requests
 import time
-import json
-from openai import OpenAI
-import logging
+
 from bs4 import BeautifulSoup
-from datetime import datetime
-from typing import Set, List, Tuple, Dict
 from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from dotenv import load_dotenv
+from openai import OpenAI
+from pathlib import Path
+from typing import Set, List, Tuple, Dict
+
+from storage_utils import StorageManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -274,10 +278,12 @@ def save_analysis_results(top_papers: List, relevant_papers: List, other_papers:
 
 
 def main():
-    # Example usage
-    from dotenv import load_dotenv
-    import os
+    # Determine storage mode
+    github_token = os.getenv("GITHUB_TOKEN")
+    github_repo = os.getenv("GITHUB_REPOSITORY")
+    use_github = github_token is not None and github_repo is not None
 
+    # Load environment variables
     load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
     feed_url = os.getenv("ARXIV_FEED_URL", "http://export.arxiv.org/rss/cs.CV")
@@ -288,9 +294,22 @@ def main():
     # Process papers
     top_papers, relevant_papers, other_papers = analyzer.process_papers(feed_url)
 
-    # Save results
-    output_file = save_analysis_results(top_papers, relevant_papers, other_papers)
-    print(f"Analysis results saved to: {output_file}")
+    # Save results based on mode
+    if use_github:
+        try:
+            owner, repo = github_repo.split('/')
+            storage = StorageManager(owner, repo)
+            result_url = storage.save_analysis_results(top_papers, relevant_papers, other_papers)
+            print(f"Analysis results saved to GitHub Release: {result_url}")
+        except Exception as e:
+            print(f"Error saving to GitHub: {e}")
+            # Fallback to local storage
+            output_file = save_analysis_results(top_papers, relevant_papers, other_papers)
+            print(f"Results saved locally as fallback: {output_file}")
+    else:
+        # Local storage
+        output_file = save_analysis_results(top_papers, relevant_papers, other_papers)
+        print(f"Analysis results saved locally to: {output_file}")
 
 
 if __name__ == "__main__":
