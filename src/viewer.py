@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from dotenv import load_dotenv
 from pathlib import Path
 from typing import Dict
 
@@ -60,6 +61,7 @@ def create_paper_viewer():
     st.sidebar.title("Controls")
 
     # Determine storage mode
+    load_dotenv()
     github_token = os.getenv("GITHUB_TOKEN")
     github_repo = os.getenv("GITHUB_REPOSITORY")
     use_github = github_token is not None and github_repo is not None
@@ -93,8 +95,8 @@ def create_paper_viewer():
 
     # File selection
     selected_file = st.sidebar.selectbox(
-        "Select Analysis Results",
-        result_files,
+        label="Select Analysis Results",
+        options=result_files,
         format_func=lambda x: f"Analysis from {x['key'].split('_')[-1].replace('.json', '')}" if use_github
         else f"Analysis from {x.stem.split('_')[-1]}"
     )
