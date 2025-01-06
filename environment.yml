@@ -1,0 +1,9 @@
+name: research-analyzer
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip>=24.0.0
+  - pip:
+      - -r requirements-dev.txt

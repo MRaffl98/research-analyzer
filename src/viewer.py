@@ -1,0 +1,192 @@
+import streamlit as st
+import pandas as pd
+import json
+from pathlib import Path
+from typing import Dict
+import plotly.express as px
+
+
+def load_analysis_results(file_path: str) -> Dict:
+    """Load analysis results from a JSON file."""
+    with open(file_path, 'r') as f:
+        return json.load(f)
+
+
+def render_papers_list(df: pd.DataFrame, category: str):
+    """Render a list of papers with their details."""
+    if df.empty:
+        st.info(f"No papers found in {category}.")
+        return
+
+    # Sort options
+    sort_by = st.selectbox(
+        "Sort by",
+        ["abstract_score", "title", "title_score"],
+        format_func=lambda x: "Final Score" if x == "abstract_score" else (
+            "Initial Score" if x == "title_score" else "Title"),
+        key=f"sort_{category}"
+    )
+
+    df_sorted = df.sort_values(by=sort_by, ascending=sort_by not in ["abstract_score", "title_score"])
+
+    for _, paper in df_sorted.iterrows():
+        score_display = f"(Initial: {paper.get('title_score', 0):.2f}, Final: {paper.get('abstract_score', 0):.2f})"
+        with st.expander(f"{paper['title']} {score_display}"):
+            if 'topics' in paper and paper['topics']:
+                st.write("**Topics:**", ", ".join(paper['topics']))
+            if 'abstract' in paper and paper['abstract']:
+                st.write("**Abstract:**", paper['abstract'])
+
+            if paper.get('metadata'):
+                if 'key_findings' in paper['metadata']:
+                    st.write("**Key Findings:**", paper['metadata']['key_findings'])
+                if 'industrial_applications' in paper['metadata']:
+                    st.write("**Industrial Applications:**")
+                    for app in paper['metadata']['industrial_applications']:
+                        st.write(f"- {app}")
+
+            if 'link' in paper and paper['link']:
+                st.markdown(f"[View Paper]({paper['link']})")
+
+
+def create_paper_viewer():
+    st.title("Research Paper Analysis Viewer")
+
+    # Sidebar for file selection and filtering
+    st.sidebar.title("Controls")
+
+    # Find all analysis result files
+    results_dir = Path("analysis_results")
+    if not results_dir.exists():
+        st.error("No analysis results found. Please run the analyzer first.")
+        return
+
+    result_files = list(results_dir.glob("papers_analysis_*.json"))
+    if not result_files:
+        st.error("No analysis results found. Please run the analyzer first.")
+        return
+
+    # File selection
+    selected_file = st.sidebar.selectbox(
+        "Select Analysis Results",
+        result_files,
+        format_func=lambda x: f"Analysis from {x.stem.split('_')[-1]}"
+    )
+
+    # Load selected results
+    results = load_analysis_results(selected_file)
+
+    # Convert all paper categories to DataFrames with proper ordering
+    papers_data = {
+        "Top Papers": pd.DataFrame(results.get("top_papers", [])),
+        "Relevant Papers": pd.DataFrame(results.get("relevant_papers", [])),
+        "Other Papers": pd.DataFrame(results.get("other_papers", []))
+    }
+
+    # Global filters in sidebar
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Global Filters")
+
+    # Collect all topics across all paper categories
+    all_topics = set()
+    for df in papers_data.values():
+        if not df.empty and 'topics' in df.columns:
+            for topics in df['topics']:
+                if isinstance(topics, list):
+                    all_topics.update(topics)
+
+    # Topic filter
+    if all_topics:
+        selected_topics = st.sidebar.multiselect(
+            "Filter by Topics",
+            sorted(all_topics)
+        )
+
+        # Apply topic filter to all dataframes
+        if selected_topics:
+            for category in papers_data:
+                df = papers_data[category]
+                if not df.empty and 'topics' in df.columns:
+                    papers_data[category] = df[df['topics'].apply(
+                        lambda x: any(topic in x for topic in selected_topics)
+                    )]
+
+    # Create main tabs for different views
+    view_tab, analytics_tab = st.tabs(["Papers View", "Analytics"])
+
+    with view_tab:
+        # Create tabs for different paper categories
+        paper_tabs = st.tabs(list(papers_data.keys()))
+
+        # Render each category in its respective tab
+        for tab, category in zip(paper_tabs, papers_data):
+            with tab:
+                df = papers_data[category]
+                st.subheader(f"{category} ({len(df)} papers)")
+                render_papers_list(df, category)
+
+    with analytics_tab:
+        # Combined analytics across all categories
+        st.subheader("Analysis Overview")
+
+        # Paper counts
+        counts = {cat: len(df) for cat, df in papers_data.items() if not df.empty}
+        if counts:
+            fig_counts = px.pie(
+                values=list(counts.values()),
+                names=list(counts.keys()),
+                title="Distribution of Papers by Category"
+            )
+            st.plotly_chart(fig_counts)
+        else:
+            st.info("No papers found in any category.")
+
+        # Score distributions
+        dfs_with_scores = {
+            cat: df for cat, df in papers_data.items()
+            if not df.empty and 'abstract_score' in df.columns
+        }
+
+        if dfs_with_scores:
+            # Combine all papers with their categories
+            score_data = []
+            for cat, df in dfs_with_scores.items():
+                cat_scores = df[['abstract_score']].copy()
+                cat_scores['Category'] = cat
+                score_data.append(cat_scores)
+
+            combined_scores = pd.concat(score_data)
+
+            fig_scores = px.box(
+                combined_scores,
+                x='Category',
+                y='abstract_score',
+                title='Score Distribution by Category'
+            )
+            st.plotly_chart(fig_scores)
+
+        # Topic distribution across all papers
+        if all_topics:
+            topic_counts = {}
+            for df in papers_data.values():
+                if not df.empty and 'topics' in df.columns:
+                    for topics in df['topics']:
+                        if isinstance(topics, list):
+                            for topic in topics:
+                                topic_counts[topic] = topic_counts.get(topic, 0) + 1
+
+            topic_df = pd.DataFrame(
+                {'Topic': list(topic_counts.keys()), 'Count': list(topic_counts.values())}
+            ).sort_values('Count', ascending=False)
+
+            fig_topics = px.bar(
+                topic_df,
+                x='Topic',
+                y='Count',
+                title='Overall Topic Distribution'
+            )
+            st.plotly_chart(fig_topics)
+
+
+if __name__ == "__main__":
+    create_paper_viewer()
