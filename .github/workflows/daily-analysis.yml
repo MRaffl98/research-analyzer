@@ -8,6 +8,10 @@ on:
     branches:
       - main  # or master, depending on your default branch
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - feature/use_github_releases
 
 jobs:
   analyze:
