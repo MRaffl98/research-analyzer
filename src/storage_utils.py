@@ -86,7 +86,38 @@ class StorageManager:
 
     def get_analysis_file(self, download_url: str) -> Dict:
         """Get a specific analysis file from GitHub release."""
-        response = requests.get(download_url)
-        if response.status_code == 200:
-            return response.json()
+        # First, extract the release tag and filename from the download URL
+        # Example URL: https://github.com/owner/repo/releases/download/analysis-2025-01-06/papers_analysis_2025-01-06.json
+        parts = download_url.split('/')
+        tag = parts[-2]  # e.g., 'analysis-2025-01-06'
+        filename = parts[-1]  # e.g., 'papers_analysis_2025-01-06.json'
+
+        # Get the release info through the API
+        release_url = f'{self.api_base}/releases/tags/{tag}'
+        release_response = requests.get(release_url, headers=self.headers)
+
+        if release_response.status_code != 200:
+            print(f"Failed to get release: {release_response.status_code}")
+            return {}
+
+        release = release_response.json()
+
+        # Find the asset with matching filename
+        for asset in release['assets']:
+            if asset['name'] == filename:
+                # Use the API URL for downloading the asset
+                response = requests.get(
+                    asset['url'],
+                    headers={
+                        **self.headers,
+                        'Accept': 'application/octet-stream'
+                    }
+                )
+
+                if response.status_code == 200:
+                    return json.loads(response.content)
+
+                print(f"Failed to download asset: {response.status_code}")
+                break
+
         return {}
