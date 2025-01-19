@@ -48,4 +48,4 @@ Both the `analyzer.py` and the `viewer.py` scripts can be extended in various wa
 - Make the streamlit app more interactive, easier to use for your specific use case, etc.
 
 In addition, it is possible to change the way the data is stored and accessed, i.e. move away from GitHub releases and
-use better suited storage solution instead.
+use a better suited storage solution instead.
