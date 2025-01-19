@@ -281,7 +281,7 @@ def main():
     # Determine storage mode
     github_token = os.getenv("GITHUB_TOKEN")
     github_repo = os.getenv("GITHUB_REPOSITORY")
-    use_github = github_token is not None and github_repo is not None
+    use_github = (github_token is not None) and (github_repo is not None)
 
     # Load environment variables
     load_dotenv()
