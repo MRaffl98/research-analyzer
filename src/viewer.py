@@ -64,7 +64,7 @@ def create_paper_viewer():
     load_dotenv()
     github_token = os.getenv("GITHUB_TOKEN")
     github_repo = os.getenv("GITHUB_REPOSITORY")
-    use_github = github_token is not None and github_repo is not None
+    use_github = (github_token is not None) and (github_repo is not None)
 
     # Find analysis result files
     if use_github:
