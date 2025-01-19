@@ -143,7 +143,7 @@ def create_paper_viewer():
                     )]
 
     # Create main tabs for different views
-    view_tab, analytics_tab = st.tabs(["Papers View", "Analytics"])
+    view_tab, analytics_tab, how_it_works_tab = st.tabs(["Papers View", "Analytics", "How it Works"])
 
     with view_tab:
         # Create tabs for different paper categories
@@ -217,6 +217,43 @@ def create_paper_viewer():
                 title='Overall Topic Distribution'
             )
             st.plotly_chart(fig_topics)
+
+
+    with how_it_works_tab:
+        st.header("How the Analysis Works")
+
+        st.write("""
+        This application analyzes research papers from arXiv's Computer Vision feed (http://export.arxiv.org/rss/cs.CV) 
+        to identify and evaluate papers relevant to industrial visual inspection. Here's how the process works:
+    
+        #### 1. Initial Screening
+        First, we evaluate each paper's title using GPT-4o-mini with a specialized prompt that focuses on industrial 
+        visual inspection criteria, including computer vision techniques, defect detection, quality control automation, 
+        and industrial applications. This generates the **Initial Score** you see for each paper.
+    
+        #### 2. Detailed Analysis
+        Papers that pass the initial screening have their abstracts evaluated, resulting in a **Final Score**. 
+        The most promising papers (those with high final scores) undergo a detailed analysis where we:
+        - Extract key topics and techniques
+        - Identify potential industrial applications
+        - Summarize key findings
+    
+        #### 3. Paper Categories
+        Papers are sorted into three categories:
+        - **Top Papers**: Highly relevant papers that passed both title and abstract screening
+        - **Relevant Papers**: Papers that showed promise in title screening but didn't meet the abstract threshold
+        - **Other Papers**: Papers that didn't pass the initial title screening
+    
+        #### Using the Interface
+        - Use the **Papers View** tab to explore individual papers, their scores, and detailed analyses
+        - The **Analytics** tab provides visualizations of the overall analysis results
+        - Use the sidebar filters to focus on specific topics of interest
+        - Sort options allow you to organize papers by different criteria within each category
+    
+        #### Implementation Details
+        In case you are interested in technical details or want to customize the project to your needs, have a look at
+        the project's GitHub repository (https://github.com/MRaffl98/research-analyzer).
+        """)
 
 
 if __name__ == "__main__":
