@@ -55,7 +55,7 @@ def render_papers_list(df: pd.DataFrame, category: str):
 
 
 def create_paper_viewer():
-    st.title("Research Paper Analysis Viewer")
+    st.title("Industrial Visual Inspection Paper Analyzer")
 
     # Sidebar for file selection and filtering
     st.sidebar.title("Controls")
